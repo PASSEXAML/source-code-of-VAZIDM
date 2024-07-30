@@ -16,7 +16,7 @@ from tensorflow.python import debug as tf_debug
 
 
 
-def train(adata, network, output_dir="E://work_code//Dva//output", optimizer='RMSprop', learning_rate=None,
+def train(adata, network, output_dir=None, optimizer='RMSprop', learning_rate=None,
           epochs=100, reduce_lr=10, output_subset=None, use_raw_as_output=True,
           early_stop=50, batch_size=32, clip_grad=5., save_weights=False,
           validation_split=0.1, tensorboard=False, verbose=True, threads=None,

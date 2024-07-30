@@ -11,7 +11,7 @@ from keras.losses import binary_crossentropy
 import tensorflow as tf
 from .datahandle import write_text_matrix
 from .layers import ConstantDispersionLayer, SliceLayer, ColwiseMultLayer, ElementwiseDense, SelfAttention
-from .loss import NB, ZINB, VAE_loss, VAE_zinb
+from .loss import NB, ZINB
 
 MeanAct = lambda x: tf.clip_by_value(K.exp(x), 1e-5, 1e6)
 DispAct = lambda x: tf.clip_by_value(tf.nn.softplus(x), 1e-4, 1e4)
@@ -21,29 +21,25 @@ advanced_activations = ('PReLU', 'LeakyReLU')
 
 class VariationalAutoencoder():
     def __init__(self,
-                W_x,
-                W_v,
                 input_size,
-                hidden_size=(64, 32, 64),
+                hidden_size=(128, 64, 128),
                 output_size=None,
-                l1_coef=0.,
+                l1_coef=0.0000001,
                 l2_coef=0.,
                 l2_enc_coef=0.,
-                l1_enc_coef=0.,
+                l1_enc_coef=0.000001,
                 ridge=0.,
                 hidden_dropout=0.,
                 input_dropout=0.,
                 batchnorm=True,
                 init='glorot_uniform',
-                file_path="E:\\work_code\\Dva_sa\\",
+                file_path=None,
                 activation='relu',
                 debug=True,
                 z_mean=None,
                 z_log_var=None,
                 ):
 
-        self.W_x = W_x
-        self.W_v = W_v
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
@@ -105,7 +101,7 @@ class VariationalAutoencoder():
         for hid_size in reversed(self.hidden_size[:-1]):
             z = Dense(hid_size, activation=self.activation)(z)
 
-        # z = SelfAttention(input_size=64, num_heads=1)(z)
+        z = SelfAttention(input_size=128, num_heads=1)(z)
 
         self.decoder_output = Dense(self.output_size, activation='sigmoid')(z)
 
@@ -127,11 +123,7 @@ class VariationalAutoencoder():
                        name='mean')(self.decoder_output)
 
         zinb = ZINB(pi, theta=disp, ridge_lambda=self.ridge, debug=self.debug)
-        # self.model = Model(inputs=self.input_layer, outputs=self.decoder_output)
-        # vae = VAE_loss(input_size=self.input_size, input_layer=self.input_layer, decoder_output=self.decoder_output,
-        #                     z_mean=self.z_mean, z_log_var=self.z_log_var)
-        # vae_loss = vae.loss
-        # vae_zinb = VAE_zinb(zinb_loss=zinb_loss, vae_loss=vae_loss, W_v=self.W_v, W_z=self.W_x)
+
         self.loss = zinb.loss
         output = mean
         output = SliceLayer(0, name='slice')([output, disp, pi])
@@ -151,8 +143,8 @@ class VariationalAutoencoder():
         rownames = adata.index
 
         if return_info:
-            os.makedirs(self.file_path+"vs_loss", exist_ok=True)
-            file_path = self.file_path+"vs_loss"
+            os.makedirs(self.file_path, exist_ok=True)
+            file_path = self.file_path
             output_values = self.model.predict(adata.values)
             write_text_matrix(output_values,
                               os.path.join(file_path, 'output_values.csv'),

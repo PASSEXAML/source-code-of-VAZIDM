@@ -8,8 +8,6 @@ import csv
 
 class api():
     def dva(self,
-            W_x,
-            W_v,
             adata,
             mode='denoise',
             vae_type='normal',
@@ -32,6 +30,7 @@ class api():
             return_model=False,
             return_info=True,
             copy=False,
+            file_path=None
             ):
         # assert isinstance(adata, anndata.AnnData), 'adata must be an AnnData instance'
         assert mode in ('denoise', 'latent'), '%s is not a valid mode.' % mode
@@ -48,8 +47,7 @@ class api():
                         'batchnorm': batchnorm,
                         'activation': activation,
                         'init': init,
-                        'W_x': W_x,
-                        'W_v': W_v
+                        'file_path': file_path,
                         }
 
         from tensorflow.python.framework.ops import disable_eager_execution
@@ -72,7 +70,8 @@ class api():
                          'optimizer': optimizer,
                          'verbose': verbose,
                          'threads': threads,
-                         'learning_rate': learning_rate
+                         'learning_rate': learning_rate,
+                         'output_dir': file_path,
                          }
 
         # 划分训练集和测试集
@@ -83,7 +82,9 @@ class api():
         adata = res if copy else adata
 
         if return_info:
-            with open('./output/loss_history.csv', 'w', newline='') as csvfile:
+            os.makedirs(file_path, exist_ok=True)
+            loss_history = os.path.join(file_path, 'loss_history.csv')
+            with open(loss_history, 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 for key, value in hist.history.items():
                     print(f"{key}: {len(value)}")

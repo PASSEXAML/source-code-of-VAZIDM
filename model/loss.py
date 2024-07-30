@@ -181,45 +181,5 @@ class ZINB(NB):
 
         return result
 
-class VAE_loss(object):
-    def __init__(self,
-                input_size,
-                input_layer=None,
-                decoder_output=None,
-                scope='vae_loss/',
-                z_log_var=None,
-                z_mean=None,
-                **kwargs):
-        self.input_size = input_size
-        self.input_layer = input_layer
-        self.decoder_output = decoder_output
-        self.output_layer = decoder_output
-        self.z_log_var = z_log_var
-        self.z_mean = z_mean
 
-    def loss(self, y_true, y_pred, mean=True):
-        reconstruction_loss = binary_crossentropy(self.input_layer, self.decoder_output)
-        reconstruction_loss *= self.input_size
-        kl_loss = 1 + self.z_log_var - K.square(self.z_mean) - K.exp(self.z_log_var)
-        kl_loss = K.sum(kl_loss, axis=-1)
-        kl_loss *= -0.5
-        reconstruction_loss = K.mean(reconstruction_loss)
-        vae_loss = K.mean(reconstruction_loss + kl_loss)
-        return vae_loss
-
-class VAE_zinb(object):
-    def __init__(self,
-                 zinb_loss,
-                 vae_loss,
-                 W_v,
-                 W_z,
-                **kwargs):
-        self.zinb_loss = zinb_loss
-        self.vae_loss = vae_loss
-        self.W_v = W_v
-        self.W_z = W_z
-    def loss(self, y_true, y_pred, mean=True):
-        zinb_loss_value = self.zinb_loss(y_true, y_pred)
-        vae_loss_value = self.vae_loss(y_true, y_pred)
-        return self.W_v * zinb_loss_value + self.W_z * vae_loss_value
 
