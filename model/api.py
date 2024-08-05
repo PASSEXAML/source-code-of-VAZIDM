@@ -10,7 +10,7 @@ class api():
     def dva(self,
             adata,
             mode='denoise',
-            vae_type='normal',
+            vae_type='GAN_VAE',
             hidden_size=(64, 32, 64),
             hidden_dropout=0.,
             batchnorm=True,
@@ -22,7 +22,8 @@ class api():
             early_stop=50,
             batch_size=32,
             optimizer='RMSprop',
-            learning_rate=0.01,
+            # leraning_rate = 0.01,
+            learning_rate=0.001,
             random_state=0,
             threads=None,
             verbose=False,
@@ -58,7 +59,7 @@ class api():
         net = VAE_types[vae_type](input_size=input_size,
                                   output_size=output_size,
                                   **network_kwds)
-        net.save()
+        # net.save()
         net.build()
 
 
@@ -78,9 +79,9 @@ class api():
         train_data, test_data = train_test_split(adata, test_size=0.2, random_state=0)
         hist = train(train_data, net, **training_kwds)
         print(f"len(train_data): {len(train_data)}")
+        print(f"test_data_shape: {test_data.shape}")
         res = net.predict(test_data, mode, return_info, copy)
         adata = res if copy else adata
-
         if return_info:
             os.makedirs(file_path, exist_ok=True)
             loss_history = os.path.join(file_path, 'loss_history.csv')

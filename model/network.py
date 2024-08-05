@@ -2,7 +2,7 @@ import os
 import pickle
 import numpy as np
 import keras
-from keras.layers import Input, Dense, Dropout, Activation, BatchNormalization, Lambda
+from keras.layers import Input, Dense, Dropout, Activation, BatchNormalization, Lambda, LeakyReLU
 from keras.models import Model
 from keras.regularizers import l1_l2
 from keras.objectives import mean_squared_error
@@ -22,14 +22,15 @@ advanced_activations = ('PReLU', 'LeakyReLU')
 class VariationalAutoencoder():
     def __init__(self,
                 input_size,
-                hidden_size=(128, 64, 128),
+                hidden_size=(64, 32, 64),
                 output_size=None,
-                l1_coef=0.0000001,
+                l1_coef=0.001,
+                # l1_coef=0.,
                 l2_coef=0.,
                 l2_enc_coef=0.,
-                l1_enc_coef=0.000001,
+                l1_enc_coef=0.001,
                 ridge=0.,
-                hidden_dropout=0.,
+                hidden_dropout=0.01,
                 input_dropout=0.,
                 batchnorm=True,
                 init='glorot_uniform',
@@ -101,8 +102,6 @@ class VariationalAutoencoder():
         for hid_size in reversed(self.hidden_size[:-1]):
             z = Dense(hid_size, activation=self.activation)(z)
 
-        z = SelfAttention(input_size=128, num_heads=1)(z)
-
         self.decoder_output = Dense(self.output_size, activation='sigmoid')(z)
 
         self.build_output()
@@ -150,5 +149,50 @@ class VariationalAutoencoder():
                               os.path.join(file_path, 'output_values.csv'),
                               rownames=rownames, colnames=colnames, transpose=True)
 
+class GAN():
+    def __init__(self, latent_dim=100, input_size=None):
+        self.input_size = input_size
+        self.latent_dim = latent_dim
+        self.generator = self.build_generator()
+        self.discriminator = self.build_discriminator()
 
-VAE_types = {'normal': VariationalAutoencoder}
+    def build_generator(self):
+        noise = Input(shape=(self.latent_dim,))
+
+        x = Dense(256)(noise)
+        x = LeakyReLU(0.2)(x)
+        x = BatchNormalization(momentum=0.8)(x)
+
+        x = Dense(512)(x)
+        x = LeakyReLU(0.2)(x)
+        x = BatchNormalization(momentum=0.8)(x)
+
+        x = Dense(1024)(x)
+        x = LeakyReLU(0.2)(x)
+        x = BatchNormalization(momentum=0.8)(x)
+        return Model(noise, x)
+
+    def build_discriminator(self):
+        data = Input(shape=(self.input_size,))
+
+        x = Dense(512)(data)
+        x = LeakyReLU(0.2)(x)
+
+        x = Dense(256)(x)
+        x = LeakyReLU(0.2)(x)
+
+        x = Dense(self.input_size, activation='sigmoid')(x)
+        return Model(data, x)
+
+class GAN_VAE(VariationalAutoencoder):
+    def __init__(self, input_size, hidden_size=(64, 32, 64), output_size=None, latent_dim=100, **kwargs):
+        super(GAN_VAE, self).__init__(input_size, hidden_size, output_size, **kwargs)
+        self.gan = GAN(latent_dim, input_size=self.input_size)
+        self.decoder = self.gan.generator
+
+    def build(self):
+        super(GAN_VAE, self).build()
+        self.model = Model(inputs=self.input_layer, outputs=self.gan.discriminator(self.decoder_output))
+
+
+VAE_types = {'normal': VariationalAutoencoder, 'GAN_VAE': GAN_VAE}
