@@ -4,20 +4,20 @@ import matplotlib.pyplot as plt
 from scipy.stats import mannwhitneyu
 
 # 加载数据
-mean_df = pd.read_csv('../data/IBD_PRISM/mean.tsv', sep='\t')
-original_df = pd.read_csv('../data/IBD_PRISM/microbiome_PRISM.tsv', sep='\t')
-without_df = pd.read_csv('../data/IBD_PRISM/output_values.tsv', sep='\t')
-vae_df = pd.read_csv('../result/IBD_PRISM/output_values.tsv', sep='\t')
+ae_df = pd.read_csv('../data/PRJEB13870/mean.tsv', sep='\t')
+original_df = pd.read_csv('../data/PRJEB13870/PRJEB13870.tsv', sep='\t')
+vae_df = pd.read_csv('../data/PRJEB13870/output_values.tsv', sep='\t')
+gan_df = pd.read_csv('../result/PRJEB13870/output_values.tsv', sep='\t')
 
 # 确保数据包含相同的样本进行比较
 common_samples = list(
-    set(mean_df.columns[1:]).intersection(set(original_df.columns[1:])).intersection(set(vae_df.columns[1:])))
+    set(ae_df.columns[1:]).intersection(set(original_df.columns[1:])).intersection(set(vae_df.columns[1:])))
 
 # 过滤数据以仅包含这些共同的样本
-mean_df_filtered = mean_df[['# Feature / Sample'] + common_samples]
-original_df_filtered = original_df[['# Feature / Sample'] + common_samples]
-vae_df_filtered = vae_df[['# Feature / Sample'] + common_samples]
-without_df_filtered = without_df[['# Feature / Sample'] + common_samples]
+mean_df_filtered = ae_df[['clade_name'] + common_samples]
+original_df_filtered = original_df[['clade_name'] + common_samples]
+vae_df_filtered = vae_df[['clade_name'] + common_samples]
+without_df_filtered = vae_df[['clade_name'] + common_samples]
 
 
 # 标准化数据
@@ -38,11 +38,11 @@ results_ae = []
 results_vae = []
 results_without = []
 
-for clade in original_normalized['# Feature / Sample']:
-    ae_values = mean_normalized[mean_normalized['# Feature / Sample'] == clade].iloc[:, 1:].values.flatten()
-    original_values = original_normalized[original_normalized['# Feature / Sample'] == clade].iloc[:, 1:].values.flatten()
-    vae_values = vae_normalized[vae_normalized['# Feature / Sample'] == clade].iloc[:, 1:].values.flatten()
-    without_values = without_normalized[without_normalized['# Feature / Sample'] == clade].iloc[:, 1:].values.flatten()
+for clade in original_normalized['clade_name']:
+    ae_values = mean_normalized[mean_normalized['clade_name'] == clade].iloc[:, 1:].values.flatten()
+    original_values = original_normalized[original_normalized['clade_name'] == clade].iloc[:, 1:].values.flatten()
+    vae_values = vae_normalized[vae_normalized['clade_name'] == clade].iloc[:, 1:].values.flatten()
+    without_values = without_normalized[without_normalized['clade_name'] == clade].iloc[:, 1:].values.flatten()
 
     u_stat_ae, p_val_ae = mannwhitneyu(ae_values, original_values, alternative='two-sided')
     u_stat_vae, p_val_vae = mannwhitneyu(vae_values, original_values, alternative='two-sided')
@@ -71,18 +71,18 @@ axes[0].set_title('AE Model Volcano Plot')
 axes[0].set_xlabel('U Statistic')
 axes[0].set_ylabel('-log10(p-value)')
 
-# VAE模型火山图
-axes[1].scatter(results_vae_df['u_stat'], results_vae_df['-log10(p_val)'], color='#6fb4f9', alpha=0.5)
+#VAE模型火山图
+axes[1].scatter(results_without_df['u_stat'], results_without_df['-log10(p_val)'], color='orange', alpha=0.5)
 axes[1].set_title('VAE Model Volcano Plot')
 axes[1].set_xlabel('U Statistic')
 axes[1].set_ylabel('-log10(p-value)')
 
-#Without模型火山图
-axes[2].scatter(results_without_df['u_stat'], results_without_df['-log10(p_val)'], color='green', alpha=0.5)
-axes[2].set_title('Without Model Volcano Plot')
+# VAE-GAN模型火山图
+axes[2].scatter(results_vae_df['u_stat'], results_vae_df['-log10(p_val)'], color='blue', alpha=0.5)
+axes[2].set_title('VAE-GAN Model Volcano Plot')
 axes[2].set_xlabel('U Statistic')
 axes[2].set_ylabel('-log10(p-value)')
 
 plt.tight_layout()
-plt.savefig('../result/IBD_PRISM/volcano_plot.png')
+plt.savefig('../result/PRJEB13870/volcano_plot.png')
 plt.show()
