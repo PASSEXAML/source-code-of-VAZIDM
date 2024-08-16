@@ -11,6 +11,26 @@ To evaluate VAZIDM against traditional autoencoder and denoising models, we cond
 # Usage
 You can run the model by tutorial.ipynb
 
+```python
+from model.api import api  # Importing a custom API module
+import pandas as pd        # Importing pandas for data manipulation
+import tensorflow as tf    # Importing TensorFlow (not used in the script)
+import numpy as np         # Importing NumPy (not used in the script)
+
+result_path = "result\\..."  # Defining the path to save the results
+
+# Read the TSV file into a pandas DataFrame
+micro_data = pd.read_csv(".../.../matrix.tsv", sep='\t', index_col=0)
+
+# Transpose the DataFrame (switch rows and columns)
+micro_data = micro_data.transpose()
+
+# Initialize the API object
+d = api()
+
+# Apply the 'dva' function on the transposed data with specified parameters
+d.dva(adata=micro_data, threads=1, file_path=result_path)
+```
 
 
-where matrix.csv is a CSV/TSV-formatted raw count matrix with genes in rows and cells in columns. Cell and gene labels are mandatory.
+where matrix.csv is a TSV-formatted raw count matrix with microbiomes in rows and samples in columns.
