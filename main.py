@@ -4,10 +4,10 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 
-file_path = "E:\\work_code\\Dva_ana\\result\\IBD_PRISM"
+file_path = "E:\\work_code\\Dva_ana\\result\\new_PRJEB13870"
 
 # 读取tsv文件
-micro_data = pd.read_csv("./data/IBD_PRISM/microbiome_PRISM.tsv", sep='\t', index_col=0)
+micro_data = pd.read_csv("./data/PRJEB13870/PRJEB13870.tsv", sep='\t', index_col=0)
 
 # 转置数据
 micro_data = micro_data.transpose()

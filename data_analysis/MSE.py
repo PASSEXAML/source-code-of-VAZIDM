@@ -2,8 +2,8 @@ import pandas as pd
 from sklearn.metrics import mean_squared_error
 
 # 路径可能需要根据您的文件位置进行调整
-original_data_path = '../data/PRJEB13870/PRJEB13870.tsv'
-predicted_data_path = '../result/PRJEB13870/output_values.tsv'
+original_data_path = '../data/IBD_PRISM/microbiome_PRISM.tsv'
+predicted_data_path = '../data/IBD_PRISM/output_values.tsv'
 
 # 加载原始数据和预测数据
 original_data = pd.read_csv(original_data_path, sep='\t')
@@ -25,19 +25,4 @@ for sample in original_data_common.columns[1:]:  # 排除第一列（通常为�
 # 将MSE值转换为DataFrame
 mse_df = pd.DataFrame(list(mse_values.items()), columns=['Sample', 'MSE'])
 # 保存MSE值
-mse_df.to_csv('../result/PRJEB13870/MSE/gan_values.tsv', sep='\t', index=False)
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Set the visual style
-sns.set(style="whitegrid")
-
-# Create a bar plot for MSE values
-plt.figure(figsize=(14, 8))
-mse_plot = sns.barplot(x='Sample', y='MSE', data=mse_df)
-plt.xticks(rotation=90)  # Rotate the sample labels for better visibility
-plt.title('Mean Squared Error (MSE) for Each Sample')
-plt.xlabel('Sample ID')
-plt.ylabel('MSE Value')
-plt.show()
-
+mse_df.to_csv('../result/IBD_PRISM/MSE/vae_values.tsv', sep='\t', index=False)

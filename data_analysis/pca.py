@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
 # Load the data
-file_path = '../result/PRJEB13870/output_values.tsv'
+file_path = '../data/PRJEB40200/mean.tsv'
 data = pd.read_csv(file_path, sep='\t')
 
 # Transpose the dataframe to have features as columns
@@ -20,7 +20,7 @@ principal_components = pca.fit_transform(data_scaled)
 
 # Create a DataFrame with the principal components
 pca_df = pd.DataFrame(data=principal_components, columns=['Principal Component 1', 'Principal Component 2'])
-pca_df.to_csv('../result/PRJEB13870/PCA/gan_pca_values.tsv', sep='\t', index=False)
+pca_df.to_csv('../result/PRJEB40200/PCA/ae_pca_values.tsv', sep='\t', index=False)
 # Plot the first two principal components
 plt.figure(figsize=(10, 8))
 plt.scatter(pca_df['Principal Component 1'], pca_df['Principal Component 2'])
