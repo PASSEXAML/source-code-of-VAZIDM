@@ -13,4 +13,4 @@ micro_data = pd.read_csv("./data/PRJEB13870/PRJEB13870.tsv", sep='\t', index_col
 micro_data = micro_data.transpose()
 d = api();
 
-d.dva(adata=micro_data, threads=1, file_path=file_path)
+d.vazidm(adata=micro_data, threads=1, file_path=file_path)

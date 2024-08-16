@@ -7,7 +7,7 @@ from .network import VAE_types
 import csv
 
 class api():
-    def dva(self,
+    def vazidm(self,
             adata,
             mode='denoise',
             vae_type='GAN_VAE',
