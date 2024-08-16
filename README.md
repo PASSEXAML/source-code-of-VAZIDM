@@ -31,6 +31,7 @@ d = api()
 # Apply the 'dva' function on the transposed data with specified parameters
 d.dva(adata=micro_data, threads=1, file_path=result_path)
 ```
-
-
 where matrix.csv is a TSV-formatted raw count matrix with microbiomes in rows and samples in columns.
+
+# Result
+The result folder is the output directory, and output_value.csv is the processed microbial abundance matrix.
