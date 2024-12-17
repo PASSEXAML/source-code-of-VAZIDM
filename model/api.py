@@ -31,7 +31,7 @@ class api():
             return_model=False,
             return_info=True,
             copy=False,
-            file_path=None
+            file_path=None,
             ):
         # assert isinstance(adata, anndata.AnnData), 'adata must be an AnnData instance'
         assert mode in ('denoise', 'latent'), '%s is not a valid mode.' % mode
@@ -65,19 +65,14 @@ class api():
 
         training_kwds = {**training_kwds,
                          'epochs': epochs,
-                         'reduce_lr': reduce_lr,
-                         'early_stop': early_stop,
-                         'batch_size': batch_size,
-                         'optimizer': optimizer,
-                         'verbose': verbose,
-                         'threads': threads,
-                         'learning_rate': learning_rate,
-                         'output_dir': file_path,
+                         'batch_size': batch_size
                          }
 
         # 划分训练集和测试集
         train_data, test_data = train_test_split(adata, test_size=0.2, random_state=0)
-        hist = train(train_data, net, **training_kwds)
+        print(f"len(train_data): {len(train_data)}")
+        hist = train(net, train_data, **training_kwds)
+
         print(f"len(train_data): {len(train_data)}")
         print(f"test_data_shape: {test_data.shape}")
         res = net.predict(test_data, mode, return_info, copy)

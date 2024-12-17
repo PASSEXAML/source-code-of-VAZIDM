@@ -2,22 +2,21 @@ import os
 import pickle
 import numpy as np
 import keras
+import pandas as pd
 from keras.layers import Input, Dense, Dropout, Activation, BatchNormalization, Lambda, LeakyReLU
 from keras.models import Model
 from keras.regularizers import l1_l2
-from keras.objectives import mean_squared_error
 from keras import backend as K
 from keras.losses import binary_crossentropy
 import tensorflow as tf
+from tensorflow.keras.optimizers import Adam
 from .datahandle import write_text_matrix
 from .layers import ConstantDispersionLayer, SliceLayer, ColwiseMultLayer, ElementwiseDense, SelfAttention
 from .loss import NB, ZINB
 
+
 MeanAct = lambda x: tf.clip_by_value(K.exp(x), 1e-5, 1e6)
 DispAct = lambda x: tf.clip_by_value(tf.nn.softplus(x), 1e-4, 1e4)
-advanced_activations = ('PReLU', 'LeakyReLU')
-
-
 
 class VariationalAutoencoder():
     def __init__(self,
@@ -25,7 +24,6 @@ class VariationalAutoencoder():
                 hidden_size=(64, 32, 64),
                 output_size=None,
                 l1_coef=0.001,
-                # l1_coef=0.,
                 l2_coef=0.,
                 l2_enc_coef=0.,
                 l1_enc_coef=0.001,
@@ -87,7 +85,6 @@ class VariationalAutoencoder():
         return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
     def build(self):
-
         self.input_layer = Input(shape=(self.input_size, ))
         last_hidden = self.input_layer
         for i, (hid_size, hid_drop) in enumerate(zip(self.hidden_size, self.hidden_dropout)):
@@ -107,7 +104,6 @@ class VariationalAutoencoder():
         self.build_output()
 
     def build_output(self):
-
         pi = Dense(self.output_size, activation='sigmoid', kernel_initializer=self.init,
                        kernel_regularizer=l1_l2(self.l1_coef, self.l2_coef),
                        name='pi')(self.decoder_output)
@@ -133,6 +129,82 @@ class VariationalAutoencoder():
 
         self.model = Model(inputs=self.input_layer, outputs=output)
 
+class GAN():
+    def __init__(self, latent_dim=64, input_size=None, output_size=None, l1_coef=0.001, l2_coef=0., ridge=0., debug=True):
+        self.input_size = input_size
+        self.latent_dim = latent_dim
+        self.output_size = output_size
+        self.l1_coef = l1_coef
+        self.l2_coef = l2_coef
+        self.ridge = ridge
+        self.debug = debug
+        self.init = 'glorot_uniform'  # 初始化kernel初始化器
+        self.generator = self.build_generator()
+        self.discriminator = self.build_discriminator()
+        self.discriminator.compile(optimizer=Adam(0.0002, 0.5), loss='binary_crossentropy', metrics=['accuracy'])
+        self.build_gan_model()
+
+    def build_generator(self):
+        noise = Input(shape=(self.latent_dim,))
+
+        x = Dense(512)(noise)
+        x = LeakyReLU(0.2)(x)
+
+        x = Dense(256)(x)
+        x = LeakyReLU(0.2)(x)
+
+        output = Dense(self.input_size, activation='sigmoid')(x)
+        return Model(noise, output)
+
+    def build_discriminator(self):
+        data = Input(shape=(self.input_size,))
+        x = Dense(512, kernel_initializer=self.init)(data)
+        x = LeakyReLU(0.2)(x)
+        x = Dense(256, kernel_initializer=self.init)(x)
+        x = LeakyReLU(0.2)(x)
+        output = Dense(1, activation='sigmoid', kernel_initializer=self.init)(x)
+        return Model(data, output)
+
+    def build_gan_model(self):
+        self.discriminator.trainable = False
+
+        # 输入噪声生成数据
+        noise = Input(shape=(self.latent_dim,))
+        generated_data = self.generator(noise)
+
+        # 判别器对生成的数据进行评估
+        validity = self.discriminator(generated_data)
+
+        # 定义完整的GAN模型，输入为噪声，输出为判别器的结果（即对生成数据的真实性评估）
+        self.gan_model = Model(noise, validity)
+
+        # 编译GAN模型
+        self.gan_model.compile(optimizer=Adam(0.0002, 0.5), loss='binary_crossentropy')
+
+
+
+class GAN_VAE(VariationalAutoencoder):
+    def __init__(self, input_size, hidden_size=(64, 32, 64), output_size=None, latent_dim=64, **kwargs):
+        super(GAN_VAE, self).__init__(input_size, hidden_size, output_size, **kwargs)
+        self.gan = GAN(latent_dim, input_size=self.input_size, output_size=self.output_size, l1_coef=self.l1_coef, l2_coef=self.l2_coef, ridge=self.ridge, debug=self.debug)
+
+    def build(self):
+        super(GAN_VAE, self).build()
+
+        # 建立一个新的模型，将 VAE 解码器输出与 GAN 生成器结合
+        self.combined_output = self.gan.generator(self.z_mean)
+        self.model = Model(inputs=self.input_layer, outputs=self.combined_output)
+
+        # 使用 GAN 的判别器作为辅助输出，并定义联合损失
+        self.discriminator_output = self.gan.discriminator(self.combined_output)
+        print(self.discriminator_output.shape)
+        self.model = Model(inputs=self.input_layer, outputs=[self.combined_output, self.discriminator_output])
+
+        # 编译模型，定义联合损失
+        self.model.compile(optimizer='RMSprop',
+                           loss=[self.loss, 'binary_crossentropy'],
+                           loss_weights=[1, 0.65]
+                           )
 
     def predict(self, adata, mode='denoise', return_info=True, copy=False):
         assert mode in ('denoise', 'latent', 'full'), 'Unknown mode'
@@ -144,55 +216,22 @@ class VariationalAutoencoder():
         if return_info:
             os.makedirs(self.file_path, exist_ok=True)
             file_path = self.file_path
-            output_values = self.model.predict(adata.values)
-            write_text_matrix(output_values,
-                              os.path.join(file_path, 'output_values.csv'),
-                              rownames=rownames, colnames=colnames, transpose=True)
-
-class GAN():
-    def __init__(self, latent_dim=100, input_size=None):
-        self.input_size = input_size
-        self.latent_dim = latent_dim
-        self.generator = self.build_generator()
-        self.discriminator = self.build_discriminator()
-
-    def build_generator(self):
-        noise = Input(shape=(self.latent_dim,))
-
-        x = Dense(256)(noise)
-        x = LeakyReLU(0.2)(x)
-        x = BatchNormalization(momentum=0.8)(x)
-
-        x = Dense(512)(x)
-        x = LeakyReLU(0.2)(x)
-        x = BatchNormalization(momentum=0.8)(x)
-
-        x = Dense(1024)(x)
-        x = LeakyReLU(0.2)(x)
-        x = BatchNormalization(momentum=0.8)(x)
-        return Model(noise, x)
-
-    def build_discriminator(self):
-        data = Input(shape=(self.input_size,))
-
-        x = Dense(512)(data)
-        x = LeakyReLU(0.2)(x)
-
-        x = Dense(256)(x)
-        x = LeakyReLU(0.2)(x)
-
-        x = Dense(self.input_size, activation='sigmoid')(x)
-        return Model(data, x)
-
-class GAN_VAE(VariationalAutoencoder):
-    def __init__(self, input_size, hidden_size=(64, 32, 64), output_size=None, latent_dim=100, **kwargs):
-        super(GAN_VAE, self).__init__(input_size, hidden_size, output_size, **kwargs)
-        self.gan = GAN(latent_dim, input_size=self.input_size)
-        self.decoder = self.gan.generator
-
-    def build(self):
-        super(GAN_VAE, self).build()
-        self.model = Model(inputs=self.input_layer, outputs=self.gan.discriminator(self.decoder_output))
+            output_values, discriminator_values = self.model.predict(adata.values)
+            output_values_df = pd.DataFrame(output_values, index=rownames, columns=colnames)
+            output_values_df = output_values_df.T
+            discriminator_values_df = pd.DataFrame(discriminator_values)
+            output_values_df.to_csv(
+                os.path.join(file_path, 'output_values.tsv'),
+                sep='\t',  # 使用制表符作为分隔符
+                index=rownames is not None,  # 如果有 rownames，写入行索引
+                header=colnames is not None  # 如果有 colnames，写入列名
+            )
+            discriminator_values_df.to_csv(
+                os.path.join(file_path, 'discriminator_values.tsv'),
+                sep='\t',  # 使用制表符作为分隔符
+                index=True,  # 默认写入索引
+                header=True  # 默认写入列名
+            )
 
 
 VAE_types = {'normal': VariationalAutoencoder, 'GAN_VAE': GAN_VAE}
